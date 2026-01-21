@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::error::CyconeticsBciError;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Jurisdiction {
     #[serde(rename = "US-CA")]
@@ -48,14 +50,10 @@ pub enum BackendKind {
     VendorC,
 }
 
-/// XR-grid zoning metadata for this device.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XrGridBinding {
-    /// Logical zone IDs (e.g., "AZ-LAB-1-XR-EEG-LOWRISK").
     pub allowed_zones: Vec<String>,
-    /// Minimum hazard level this device may be used with (e.g., BSL-like tier).
     pub min_hazard_level: u8,
-    /// Maximum hazard level (helps constrain where the device is allowed).
     pub max_hazard_level: u8,
 }
 
@@ -71,10 +69,30 @@ pub struct SafetyFlags {
     pub medical_isolation_rated: bool,
 }
 
+/// K/S/R risk components (0–255 each, hex-friendly)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RiskComponents {
+    /// Useful-knowledge / epistemic value (K)
+    pub k_useful_knowledge: u8,
+    /// Social impact (S), positive or disruptive potential encoded as magnitude
+    pub s_social_impact: u8,
+    /// Risk of harm (R), higher => more dangerous
+    pub r_risk_of_harm: u8,
+}
+
+/// Aggregate risk score derived from K/S/R
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RiskScore {
+    /// Linear aggregate score (0–255)
+    pub overall: u8,
+    /// Optional label: "low", "moderate", "high", "extreme"
+    pub level: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCapabilityManifest {
     pub id: Uuid,
-    pub name: String,
+    pub name: String;
     pub version: String,
 
     pub backend: BackendConfig,
@@ -87,17 +105,51 @@ pub struct DeviceCapabilityManifest {
     pub privacy: PrivacyLevel,
     pub safety: SafetyFlags,
 
-    /// XR-grid binding information.
     pub xr_grid: XrGridBinding,
+
+    /// K/S/R components for this device + driver combo.
+    pub risk_components: RiskComponents,
+    /// Cached aggregate score; can be recomputed from risk_components.
+    pub risk_score: RiskScore,
 
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
-impl DeviceCapabilityManifest {
-    pub fn validate(&self) -> Result<(), crate::error::CyconeticsBciError> {
-        use crate::error::CyconeticsBciError;
+impl RiskScore {
+    /// Simple semi-quantitative aggregation inspired by lab risk matrices:
+    /// overall = clamp( (R * 2) + S.saturating_sub(K/4) , 0..=255 )
+    pub fn compute(components: &RiskComponents) -> Self {
+        let k = components.k_useful_knowledge as i32;
+        let s = components.s_social_impact as i32;
+        let r = components.r_risk_of_harm as i32;
 
+        let mut score = (r * 2) + s - (k / 4);
+        if score < 0 {
+            score = 0;
+        }
+        if score > 255 {
+            score = 255;
+        }
+        let overall = score as u8;
+
+        let level = if overall < 64 {
+            "low"
+        } else if overall < 128 {
+            "moderate"
+        } else if overall < 192 {
+            "high"
+        } else {
+            "extreme"
+        }
+        .to_string();
+
+        RiskScore { overall, level }
+    }
+}
+
+impl DeviceCapabilityManifest {
+    pub fn validate(&self) -> Result<(), CyconeticsBciError> {
         if self.channels.is_empty() {
             return Err(CyconeticsBciError::ManifestViolation(
                 "DCM must declare at least one channel".into(),
@@ -140,5 +192,10 @@ impl DeviceCapabilityManifest {
         }
 
         Ok(())
+    }
+
+    /// Helper to recompute and update risk_score from risk_components.
+    pub fn recompute_risk_score(&mut self) {
+        self.risk_score = RiskScore::compute(&self.risk_components);
     }
 }
