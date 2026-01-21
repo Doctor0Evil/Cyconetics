@@ -6,6 +6,7 @@ use cyconetics_bci_core::create::{create_bci_device_driver, DriverModuleRef};
 use cyconetics_bci_core::dcm::{
     BackendConfig, BackendKind, ChannelSpec, DeviceCapabilityManifest, Jurisdiction,
     PrivacyLevel, SamplingConstraints, SafetyFlags, SessionConstraints, XrGridBinding,
+    RiskScore,
 };
 use cyconetics_bci_policy::site::{site_profile_arizona, SiteProfile};
 
@@ -52,6 +53,11 @@ fn synthetic_manifest_az() -> DeviceCapabilityManifest {
             min_hazard_level: 1,
             max_hazard_level: 2,
         },
+        risk_score: RiskScore::from_components(
+            0xE5, // K
+            0x68, // S
+            0x32, // R -> "low" band
+        ),
         tags: vec!["synthetic".into(), "dev".into()],
         created_at: Utc::now(),
     }
