@@ -1,0 +1,22 @@
+id: governance.totem.superposition.v1
+version: 1.0.0
+kind: governance
+description: >
+  Superposition/Eibon superchair eligibility and term rules for CHAT-gated governance.
+
+fields:
+  min_chat_stake_ref: asset.chat.stake.v1:min_stake.superchair
+  min_contrib_index_ref: asset.chat.stake.v1:min_contrib_index.superchair
+  term_length_days: 365
+  max_consecutive_terms: 2
+
+  revocability:
+    allow_host_self_withdrawal: true
+    allow_council_recall_fraction: 0.67
+
+logging:
+  require_authorship_triplet: true
+  require_eibon_label: true
+  require_hexstamp: true
+
+hexstamp: "0xaf31c8e924f5703d8c4f2a19e5d44cb7"
