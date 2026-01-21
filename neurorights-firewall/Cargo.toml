@@ -1,0 +1,9 @@
+[package]
+name = "neurorights-firewall"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+neurorights-core = { path = "../neurorights-core" }
+neurorights-macros = { path = "../neurorights-macros" }
+serde_json = "1"

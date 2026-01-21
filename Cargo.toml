@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/neurorights-core",
+    "crates/neurorights-macros",
+    "crates/neurorights-firewall",
+    "crates/organic_cpu_math",
+    "crates/organic_cpu_sim",
+]
+
+[workspace.package]
+edition = "2021"
