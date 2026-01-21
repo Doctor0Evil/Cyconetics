@@ -1,45 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::{EvidenceBundle, RoHBound, roh_from_biokarma};
-use crate::types::DecisionKind;
 use crate::LEDGER_ROH_MAX;
-use crate::types::{EvidenceBundle, RoHBound, roh_from_biokarma};
-
-impl RoHGuardedHostState {
-    pub fn predict_roh(
-        host_did: &str,
-        upgrade_id: &str,
-        evolution_id: &str,
-        evidence: &EvidenceBundle,
-    ) -> Result<(Self, UpgradeDecision), RoHPredictError> {
-        evidence.validate()?;
-        let roh = roh_from_biokarma(evidence);
-
-        let token = if roh <= LEDGER_ROH_MAX as f32 {
-            RoHBound::<30>::new(roh)
-        } else {
-            None
-        };
-
-        let decision = if roh < LEDGER_ROH_MAX as f32 {
-            UpgradeDecision::Approved
-        } else {
-            UpgradeDecision::Denied
-        };
-
-        Ok((
-            RoHGuardedHostState {
-                host_did: host_did.into(),
-                upgrade_id: upgrade_id.into(),
-                evolution_id: evolution_id.into(),
-                last_observed_roh: roh,
-                predicted_roh: roh,
-                roh_token: token,
-            },
-            decision,
-        ))
-    }
-}
+use crate::types::{EvidenceBundle, EvidenceError, RoHBound, roh_from_biokarma};
 
 /// High-level decision outcome for an upgrade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,7 +24,7 @@ pub struct RoHGuardedHostState {
 
 impl RoHGuardedHostState {
     /// Compute predicted RoH from evidence and return decision + possible RoHBound token.
-    /// If predicted RoH >= 0.3, returns Denied and None for RoHBound<30>.
+    /// If predicted RoH >= LEDGER_ROH_MAX, returns Denied and None for RoHBound<30>.
     pub fn predict_roh(
         host_did: &str,
         upgrade_id: &str,
@@ -70,10 +32,17 @@ impl RoHGuardedHostState {
         evidence: &EvidenceBundle,
     ) -> Result<(Self, UpgradeDecision), RoHPredictError> {
         evidence.validate()?;
-        let roh = roh_from_biokarma(evidence);
-        let token = RoHBound::<30>::new(roh);
 
-        let decision = if roh < 0.30 {
+        let roh = roh_from_biokarma(evidence);
+        let ceiling = LEDGER_ROH_MAX as f32;
+
+        let token = if roh <= ceiling {
+            RoHBound::<30>::new(roh)
+        } else {
+            None
+        };
+
+        let decision = if roh < ceiling {
             UpgradeDecision::Approved
         } else {
             UpgradeDecision::Denied
@@ -96,5 +65,5 @@ impl RoHGuardedHostState {
 #[derive(Debug, thiserror::Error)]
 pub enum RoHPredictError {
     #[error(transparent)]
-    Evidence(#[from] crate::types::EvidenceError),
+    Evidence(#[from] EvidenceError),
 }
