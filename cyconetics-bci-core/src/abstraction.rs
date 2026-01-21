@@ -18,6 +18,7 @@ pub struct CyconeticsBciDevice {
     device: BrainFlowDevice,
     bound_zone: Option<String>,
     bound_hazard_level: Option<u8>,
+    session_start: Option<DateTime<Utc>>,
 }
 
 impl CyconeticsBciDevice {
@@ -28,6 +29,7 @@ impl CyconeticsBciDevice {
             device,
             bound_zone: None,
             bound_hazard_level: None,
+            session_start: None,
         }
     }
 
@@ -35,9 +37,6 @@ impl CyconeticsBciDevice {
         &self.manifest
     }
 
-    /// Bind this device instance to a specific XR-grid zone and hazard level.
-    ///
-    /// This must succeed before starting any stream or snapshot.
     pub fn bind_to_zone(
         &mut self,
         zone_id: &str,
@@ -45,7 +44,6 @@ impl CyconeticsBciDevice {
     ) -> Result<(), CyconeticsBciError> {
         use CyconeticsBciError::ManifestViolation;
 
-        // Check that zone is allowed in the device's XR-grid manifest.
         if !self
             .manifest
             .xr_grid
@@ -59,7 +57,6 @@ impl CyconeticsBciDevice {
             )));
         }
 
-        // Check hazard level against device's min/max hazard band.
         if hazard_level < self.manifest.xr_grid.min_hazard_level
             || hazard_level > self.manifest.xr_grid.max_hazard_level
         {
@@ -85,12 +82,35 @@ impl CyconeticsBciDevice {
         Ok(())
     }
 
-    /// Start streaming, enforcing XR-grid binding and manifest constraints.
+    fn ensure_session_within_limits(&self) -> Result<(), CyconeticsBciError> {
+        use CyconeticsBciError::ManifestViolation;
+
+        if let Some(start) = self.session_start {
+            let elapsed = (Utc::now() - start).num_seconds();
+            let max = self.manifest.session.max_duration_secs as i64;
+            if elapsed > max {
+                return Err(ManifestViolation(format!(
+                    "Session duration {}s exceeds max_duration_secs {}s",
+                    elapsed, max
+                )));
+            }
+        }
+        Ok(())
+    }
+
     pub fn bci_stream_start(
         &mut self,
         sampling_hz: Option<u32>,
     ) -> Result<(), CyconeticsBciError> {
         self.ensure_bound()?;
+
+        // Enforce max duration at the moment of (re)start.
+        self.ensure_session_within_limits()?;
+
+        if self.session_start.is_none() {
+            self.session_start = Some(Utc::now());
+        }
+
         self.device.start_stream(sampling_hz)
     }
 
@@ -98,17 +118,17 @@ impl CyconeticsBciDevice {
         self.device.stop_stream()
     }
 
-    /// Take a snapshot of current data; requires a valid XR-grid binding.
     pub fn bci_snapshot(
         &mut self,
         num_samples: usize,
     ) -> Result<Vec<BciFrame>, CyconeticsBciError> {
         self.ensure_bound()?;
+        self.ensure_session_within_limits()?;
+
         let raw = self.device.read_frame(Some(num_samples))?;
         let now = Utc::now();
         let mut frames = Vec::new();
 
-        // Aggregate per-channel values into a single frame (simple average).
         let mut aggregated = vec![0.0; raw.len()];
         let mut count = 0usize;
         for ch_idx in 0..raw.len() {
