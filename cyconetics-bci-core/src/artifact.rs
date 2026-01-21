@@ -6,15 +6,11 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::error::CyconeticsBciError;
 
 /// Simple local artifact cache abstraction.
-///
-/// In a full system, this would be backed by sovereign object storage and
-/// DID/bostrom-verifiable indices; here we provide a filesystem-based skeleton.
 pub struct LocalArtifactCache {
     root: PathBuf,
 }
 
 impl LocalArtifactCache {
-    /// Initialize cache rooted at `~/.cyconetics/artifacts` or a custom path.
     pub fn new_default() -> Result<Self, CyconeticsBciError> {
         let base = dirs::home_dir()
             .ok_or_else(|| CyconeticsBciError::ConfigError("no home dir".into()))?;
@@ -52,53 +48,52 @@ impl LocalArtifactCache {
     }
 }
 
-/// Skeleton types for signing; to be wired into DID/bostrom/ALN stack.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// DID-like identifier structure. In a real deployment, this would
+/// conform to ALN/bostrom DID method specs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycDid {
+    pub did: String,
+    pub public_key: Vec<u8>,
+}
+
+/// Signed artifact wrapper.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedArtifact<T> {
     pub payload: T,
-    /// Signature bytes in hex/base64; semantics defined by external signer.
     pub signature: String,
-    /// Public key / DID used.
-    pub signer_id: String,
+    pub signer: CycDid,
 }
 
 pub trait ArtifactSigner {
-    fn sign(&self, data: &[u8]) -> Result<(String, String), CyconeticsBciError>;
+    fn sign(&self, data: &[u8]) -> Result<(String, CycDid), CyconeticsBciError>;
 }
 
 pub trait ArtifactVerifier {
-    fn verify(
-        &self,
-        data: &[u8],
-        signature: &str,
-        signer_id: &str,
-    ) -> Result<(), CyconeticsBciError>;
+    fn verify(&self, data: &[u8], signature: &str, signer: &CycDid)
+        -> Result<(), CyconeticsBciError>;
 }
 
 impl<T: Serialize> SignedArtifact<T> {
-    pub fn new(
-        payload: T,
-        signer: &dyn ArtifactSigner,
-    ) -> Result<Self, CyconeticsBciError> {
+    pub fn new(payload: T, signer: &dyn ArtifactSigner) -> Result<Self, CyconeticsBciError> {
         let data =
             serde_json::to_vec(&payload).map_err(|e| CyconeticsBciError::SigningError(e.to_string()))?;
-        let (signature, signer_id) = signer.sign(&data)?;
+        let (signature, did) = signer.sign(&data)?;
         Ok(Self {
             payload,
             signature,
-            signer_id,
+            signer: did,
         })
     }
 }
 
-impl<T: DeserializeOwned> SignedArtifact<T> {
+impl<T: DeserializeOwned + Clone> SignedArtifact<T> {
     pub fn verify(
         &self,
         verifier: &dyn ArtifactVerifier,
     ) -> Result<T, CyconeticsBciError> {
         let data = serde_json::to_vec(&self.payload)
             .map_err(|e| CyconeticsBciError::SigningError(e.to_string()))?;
-        verifier.verify(&data, &self.signature, &self.signer_id)?;
+        verifier.verify(&data, &self.signature, &self.signer)?;
         Ok(self.payload.clone())
     }
 }
