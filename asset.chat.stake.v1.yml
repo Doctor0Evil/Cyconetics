@@ -1,0 +1,10 @@
+name: asset.chat.stake.v1
+version: 1.0.0
+stake_thresholds:
+  stakeholder: 100
+  council: 500
+  superchair: 1000
+governance_rules:
+  propose: stakeholder
+  review: council
+  publish: superchair
