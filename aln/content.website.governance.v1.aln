@@ -1,0 +1,32 @@
+id: content.website.governance.v1
+version: 1.0.0
+kind: content_policy
+description: >
+  Page-level neurorights and risk policy for ALN-governed websites.
+
+anchors:
+  neurorights_envelope: neurorights.envelope.citizen.v1
+
+fields:
+  allowed_content_classes:
+    - "documentation"
+    - "research-summary"
+    - "governance-record"
+    - "tutorial"
+  forbidden_patterns:
+    - "coercive_language"
+    - "registry_tampering"
+    - "enforced_ideology"
+
+  risk_ceiling: 0.30
+
+  default_knowledge_factor: 0.90
+  default_risk_of_harm: 0.08
+  default_cybostate_factor: 0.92
+
+logging:
+  require_authorship_triplet: true
+  require_eibon_label: true
+  require_hexstamp: true
+
+hexstamp: "0xC9F3A8E1DB4E729F"
