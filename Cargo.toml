@@ -1,11 +1,10 @@
-[workspace]
-members = [
-    "crates/neurorights-core",
-    "crates/neurorights-macros",
-    "crates/neurorights-firewall",
-    "crates/organic_cpu_math",
-    "crates/organic_cpu_sim",
-]
-
-[workspace.package]
-edition = "2021"
+[dependencies]
+cosmrs = "0.16.0"
+tendermint-rpc = { version = "0.32.0", features = ["http-client"] }
+bip39 = { version = "2.0.0", features = ["rand"] }
+keyring = "2.3.0"
+zeroize = "1.7.0"
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+sha2 = "0.10"
+serde = { version = "1.0", features = ["derive"] }
