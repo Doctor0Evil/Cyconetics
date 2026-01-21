@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+// Neurorights policy surface.
 mod envelope;
 mod profile;
 mod bound;
@@ -15,3 +16,13 @@ pub use version::{
     NEURORIGHTS_POLICY_ID,
     NEURORIGHTS_POLICY_VERSION,
 };
+
+// Decision grammar / RoH surface.
+pub mod types;
+pub mod roles;
+pub mod roh_guard;
+pub mod ledger;
+pub mod macros;
+
+// Generated from decision.ledger.entry.v1.aln at build time.
+include!(concat!(env!("OUT_DIR"), "/aln_generated.rs"));
