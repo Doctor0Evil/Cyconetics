@@ -1,0 +1,51 @@
+{
+  "id": "1c0f0b43-58e0-4a6f-8a4f-3a0b2b847901",
+  "name": "OpenBCI-CA-Lab-Coarse-HCI",
+  "version": "0.1.0",
+  "device_manifest_id": "4f3f44a2-7c9b-4b8a-9a84-4473ed1fbb10",
+  "created_at": "2026-01-21T10:50:00Z",
+  "rules": [
+    {
+      "id": "a0c5c4d9-3e8a-4b6f-9b58-19b30f89b201",
+      "kind": "coarse_cognitive_state",
+      "label": "workload_level",
+      "jurisdictions": ["US-CA"],
+      "xr_zones": [
+        {
+          "zone_id": "XR-ZONE-CA-LAB-1",
+          "description": "Phoenix CA-mode research lab grid"
+        }
+      ],
+      "risk_level": "medium",
+      "rate_limit": { "max_hz": 1.0 },
+      "export": {
+        "topic": "bci.hci.workload",
+        "anonymized": true,
+        "notes": "3-level workload, 10 s rolling window"
+      },
+      "requires_explicit_consent": true,
+      "no_closed_loop_use": true
+    },
+    {
+      "id": "b7504cdc-9b75-4c86-9cb5-d6f5d9953a10",
+      "kind": "engagement_flag",
+      "label": "engagement_state",
+      "jurisdictions": ["US-CA"],
+      "xr_zones": [
+        {
+          "zone_id": "XR-ZONE-CA-LAB-1",
+          "description": "Phoenix CA-mode research lab grid"
+        }
+      ],
+      "risk_level": "low",
+      "rate_limit": { "max_hz": 2.0 },
+      "export": {
+        "topic": "bci.hci.engagement",
+        "anonymized": true,
+        "notes": "binary engaged/disengaged, hysteresis smoothing"
+      },
+      "requires_explicit_consent": true,
+      "no_closed_loop_use": false
+    }
+  ]
+}
