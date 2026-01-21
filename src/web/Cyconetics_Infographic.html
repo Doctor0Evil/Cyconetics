@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyconetics: Unified BCI & HCI Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Palette: Cyber-Retrieval Neon -->
+    <!-- Background: #050b14 -->
+    <!-- Surface: #0f172a -->
+    <!-- Accents: #00f3ff (Cyan), #bc13fe (Purple) -->
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#050b14',
+                            surface: '#0f172a',
+                            text: '#e2e8f0',
+                            cyan: '#00f3ff',
+                            purple: '#bc13fe',
+                            green: '#00e676',
+                            red: '#ff1744',
+                            dim: '#334155'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Chart Container Guidelines */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            height: 350px;
+            max-height: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050b14; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f3ff; 
+        }
+
+        /* Neon Glow Effects */
+        .neon-text {
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+        .neon-border {
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.2);
+        }
+        
+        /* Flowchart Connector Lines */
+        .flow-line {
+            width: 2px;
+            background: #334155;
+            flex-grow: 1;
+            min-height: 20px;
+        }
+        .flow-arrow-down {
+            width: 0; 
+            height: 0; 
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #00f3ff;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="bg-cyber-bg text-cyber-text font-sans antialiased selection:bg-cyber-cyan selection:text-black">
+
+    <!-- Header Section -->
+    <header class="w-full p-6 border-b border-cyber-dim bg-cyber-surface/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-3xl md:text-4xl font-bold font-mono tracking-tighter text-white uppercase neon-text">
+                    Cyconetics<span class="text-cyber-cyan">_</span>
+                </h1>
+                <p class="text-sm text-gray-400 font-mono mt-1">Unified BCI & HCI Architecture // Data Source: #Cyber-Retrieval</p>
+            </div>
+            <div class="flex space-x-4">
+                <span class="px-3 py-1 rounded border border-cyber-cyan text-cyber-cyan text-xs font-bold uppercase">Safe Autonomy</span>
+                <span class="px-3 py-1 rounded border border-cyber-purple text-cyber-purple text-xs font-bold uppercase">Rust Core</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 space-y-16">
+
+        <!-- Intro Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="space-y-6">
+                <h2 class="text-2xl font-bold border-l-4 border-cyber-cyan pl-4">The Discovery of BCI & HCI Unity</h2>
+                <p class="text-gray-300 leading-relaxed">
+                    Cyconetics represents a paradigm shift in neurotechnology: moving beyond simple data extraction to a <strong>Unified Human-Computer Interface (HCI)</strong>. The goal is to reduce risks of harm without limiting capabilities, creating systems that are compatible with AI-Chat timelines and procedural generation profiles.
+                </p>
+                <p class="text-gray-300 leading-relaxed">
+                    By strictly defining Device Capability Manifests (DCM) and enforcing HCI Export Profiles, we create a secure "Electrical Envelope" for augmented citizens.
+                </p>
+            </div>
+            <div class="bg-cyber-surface p-6 rounded-xl border border-cyber-dim shadow-xl neon-border">
+                <h3 class="text-lg font-mono text-cyber-cyan mb-4">// System Core Directive</h3>
+                <ul class="space-y-3 font-mono text-sm text-gray-300">
+                    <li class="flex items-start">
+                        <span class="text-cyber-green mr-2">>>></span>
+                        <span>Ingestible Knowledge for Risk Reduction</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-cyber-green mr-2">>>></span>
+                        <span>Autonomy via AI-Chat Compliance</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-cyber-green mr-2">>>></span>
+                        <span>Sovereign Identity (DID/Cosmos)</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-cyber-green mr-2">>>></span>
+                        <span>Strict Rust-Based Policy Enforcement</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Visualization 1: Strategic Priorities (Bar Chart) -->
+        <section>
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">Research Strategy: Domain Prioritization</h2>
+                <p class="text-gray-400 max-w-3xl">
+                    To achieve immediate safety hardening, the research strategy prioritizes concrete Rust mechanisms over abstract governance. The focus is on tightening the "hard safety envelope" of the system.
+                </p>
+            </div>
+            
+            <div class="bg-cyber-surface p-6 rounded-xl border border-cyber-dim shadow-lg">
+                <div class="chart-container">
+                    <canvas id="prioritiesChart"></canvas>
+                </div>
+                <div class="mt-4 text-xs text-center text-gray-500 font-mono">
+                    <span class="inline-block w-3 h-3 bg-cyber-cyan mr-1"></span> Impact Level (Estimated 0-100)
+                </div>
+            </div>
+        </section>
+
+        <!-- Visualization 2: The Unified Stack (HTML Diagram) -->
+        <section class="space-y-8">
+            <div class="text-center max-w-4xl mx-auto">
+                <h2 class="text-2xl font-bold text-white mb-4">The Unified Architecture</h2>
+                <p class="text-gray-400">
+                    Data does not flow unchecked. It passes through a rigorous validation pipeline defined by hardware manifests and export profiles, gated by the XR-Grid zoning system.
+                </p>
+            </div>
+
+            <div class="flex flex-col items-center justify-center space-y-2 font-mono text-sm">
+                
+                <!-- Step 1: BCI Hardware -->
+                <div class="w-full max-w-md bg-opacity-10 bg-blue-500 border border-blue-500 p-4 rounded text-center relative">
+                    <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-black font-bold">1</div>
+                    <strong class="text-blue-400 block mb-1">BCI Hardware Layer</strong>
+                    <span class="text-xs text-gray-400">Raw Signals, Electrodes, Voltage</span>
+                </div>
+
+                <!-- Connector -->
+                <div class="flex flex-col items-center h-8">
+                    <div class="w-px h-full bg-cyber-dim"></div>
+                    <div class="flow-arrow-down"></div>
+                </div>
+
+                <!-- Step 2: Device Capability Manifest (DCM) -->
+                <div class="w-full max-w-md bg-opacity-10 bg-cyber-cyan border border-cyber-cyan p-4 rounded text-center relative shadow-[0_0_15px_rgba(0,243,255,0.1)]">
+                    <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-cyber-cyan rounded-full flex items-center justify-center text-black font-bold">2</div>
+                    <strong class="text-cyber-cyan block mb-1">Device Capability Manifest (DCM)</strong>
+                    <span class="text-xs text-gray-400">Defines Channels, Sampling Rate, Electrical Limits</span>
+                </div>
+
+                <!-- Connector -->
+                <div class="flex flex-col items-center h-8">
+                    <div class="w-px h-full bg-cyber-dim"></div>
+                    <div class="flow-arrow-down"></div>
+                </div>
+
+                <!-- Step 3: Policy Engine -->
+                <div class="w-full max-w-md bg-opacity-10 bg-cyber-purple border border-cyber-purple p-4 rounded text-center relative shadow-[0_0_15px_rgba(188,19,254,0.1)]">
+                    <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-cyber-purple rounded-full flex items-center justify-center text-white font-bold">3</div>
+                    <strong class="text-cyber-purple block mb-1">Rust Policy Engine</strong>
+                    <span class="text-xs text-gray-400">Validators: `risk_band_complies_with_zone`, `can_use_device`</span>
+                </div>
+
+                <!-- Connector -->
+                <div class="flex flex-col items-center h-8">
+                    <div class="w-px h-full bg-cyber-dim"></div>
+                    <div class="flow-arrow-down"></div>
+                </div>
+
+                <!-- Step 4: HCI Export Profile -->
+                <div class="w-full max-w-md bg-opacity-10 bg-cyber-green border border-cyber-green p-4 rounded text-center relative">
+                    <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-cyber-green rounded-full flex items-center justify-center text-black font-bold">4</div>
+                    <strong class="text-cyber-green block mb-1">HCI Export Profile</strong>
+                    <span class="text-xs text-gray-400">Safe Output -> XR Grid / AI Chat</span>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Visualization 3: Mitigation Impact (Radar Chart) -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 bg-cyber-surface p-8 rounded-2xl border border-cyber-dim">
+            <div class="order-2 lg:order-1">
+                 <h2 class="text-2xl font-bold text-white mb-4">Mitigation Strategy Impact</h2>
+                 <p class="text-gray-400 mb-6">
+                     The system uses a quantified metric system (K/S/R) to evaluate the safety of the current architectural turn. The goal is high Knowledge (K) and Safety (S) with minimal residual Risk (R).
+                 </p>
+                 <div class="space-y-4 font-mono text-sm">
+                    <div class="p-3 bg-black/40 rounded border-l-4 border-cyber-cyan">
+                        <div class="flex justify-between">
+                            <span class="text-cyber-cyan font-bold">K: Knowledge</span>
+                            <span class="text-white">0xE3 (227)</span>
+                        </div>
+                        <p class="text-gray-500 text-xs mt-1">Focuses effort on highest structural leverage (DCM/HCI).</p>
+                    </div>
+                    <div class="p-3 bg-black/40 rounded border-l-4 border-cyber-green">
+                        <div class="flex justify-between">
+                            <span class="text-cyber-green font-bold">S: Safety</span>
+                            <span class="text-white">0x79 (121)</span>
+                        </div>
+                        <p class="text-gray-500 text-xs mt-1">Improves safety & autonomy for augmented citizens.</p>
+                    </div>
+                    <div class="p-3 bg-black/40 rounded border-l-4 border-cyber-red">
+                        <div class="flex justify-between">
+                            <span class="text-cyber-red font-bold">R: Residual Risk</span>
+                            <span class="text-white">0x27 (39)</span>
+                        </div>
+                        <p class="text-gray-500 text-xs mt-1">Minor risk from validator bugs; mitigated by CI/Tests.</p>
+                    </div>
+                 </div>
+            </div>
+            <div class="order-1 lg:order-2">
+                <div class="chart-container">
+                    <canvas id="ksrRadarChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visualization 4: XR-Grid Zoning (Cards) -->
+        <section>
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-2">XR-Grid Zoning & Logic</h2>
+                <p class="text-gray-400">
+                    The validation logic depends heavily on "Zoning." Not all devices are permitted in all contexts. The Rust validators check these bindings explicitly.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Green Zone -->
+                <div class="bg-[#051a10] border border-cyber-green/30 p-6 rounded-xl hover:border-cyber-green transition duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-cyber-green">Green Zone</h3>
+                        <div class="w-3 h-3 rounded-full bg-cyber-green shadow-[0_0_10px_#00e676]"></div>
+                    </div>
+                    <ul class="text-sm text-gray-400 space-y-2">
+                        <li>• Unrestricted safe use</li>
+                        <li>• Full autonomy allowed</li>
+                        <li>• Low risk-of-harm threshold</li>
+                        <li>• Standard Manifests accepted</li>
+                    </ul>
+                </div>
+
+                <!-- Yellow Zone -->
+                <div class="bg-[#1a1605] border border-yellow-500/30 p-6 rounded-xl hover:border-yellow-500 transition duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-yellow-400">Yellow Zone</h3>
+                        <div class="w-3 h-3 rounded-full bg-yellow-400 shadow-[0_0_10px_#facc15]"></div>
+                    </div>
+                    <ul class="text-sm text-gray-400 space-y-2">
+                        <li>• Conditional access</li>
+                        <li>• Explicit Consent Required</li>
+                        <li>• Enhanced Privacy Checks</li>
+                        <li>• Validated Profiles Only</li>
+                    </ul>
+                </div>
+
+                <!-- Red Zone -->
+                <div class="bg-[#1a0505] border border-cyber-red/30 p-6 rounded-xl hover:border-cyber-red transition duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-cyber-red">Red Zone</h3>
+                        <div class="w-3 h-3 rounded-full bg-cyber-red shadow-[0_0_10px_#ff1744]"></div>
+                    </div>
+                    <ul class="text-sm text-gray-400 space-y-2">
+                        <li>• Hazard: High Voltage/Risk</li>
+                        <li>• Strict Isolation</li>
+                        <li>• No Direct BCI Control</li>
+                        <li>• Emergency Override Only</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final Steps Section -->
+        <section class="bg-gradient-to-r from-cyber-surface to-cyber-bg p-8 rounded-xl border-t border-cyber-dim">
+            <h2 class="text-2xl font-bold text-white mb-6">Concrete Implementation Steps</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 font-mono text-sm">
+                <div>
+                    <h4 class="text-cyber-cyan mb-2 font-bold uppercase">>> Immediate Actions</h4>
+                    <ul class="space-y-3 text-gray-300">
+                        <li class="pl-4 border-l-2 border-cyber-cyan/30">Refactor `DeviceCapabilityManifest` in `cyconetics-bci-core` to use typed K/S/R fields.</li>
+                        <li class="pl-4 border-l-2 border-cyber-cyan/30">Implement `cyconetics-bci-policy` crates with risk-band validators.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-cyber-purple mb-2 font-bold uppercase">>> Validation Logic</h4>
+                    <ul class="space-y-3 text-gray-300">
+                        <li class="pl-4 border-l-2 border-cyber-purple/30">Introduce `#[cyconetics_manifest]` macro for compile-time tag enforcement.</li>
+                        <li class="pl-4 border-l-2 border-cyber-purple/30">Update CI pipelines to block release DIDs if Neurorights tags are missing.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 border-t border-cyber-dim mt-12 bg-cyber-bg">
+        <p class="text-gray-500 font-mono text-xs">
+            Generated via Cyber-Retrieval Protocol | Source: #Cyconetics | No External SVG or Mermaid Used
+        </p>
+    </footer>
+
+    <!-- Chart Logic -->
+    <script>
+        // --- Helper: Label Wrapping for >16 chars ---
+        function formatLabel(label) {
+            if (Array.isArray(label)) return label;
+            if (label.length <= 16) return label;
+            
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                if ((currentLine + " " + words[i]).length > 16) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine += " " + words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // --- Helper: Common Chart Options ---
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleColor: '#00f3ff',
+                    bodyColor: '#e2e8f0',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    padding: 10,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const item = tooltipItems[0];
+                            let label = item.chart.data.labels[item.dataIndex];
+                            if (Array.isArray(label)) {
+                                return label.join(' ');
+                            } else {
+                                return label;
+                            }
+                        }
+                    }
+                },
+                legend: {
+                    labels: {
+                        color: '#94a3b8',
+                        font: { family: 'JetBrains Mono' }
+                    }
+                }
+            },
+            scales: {
+                // Default scales (overridden for Radar)
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
+            }
+        };
+
+        // --- Chart 1: Strategic Priorities (Horizontal Bar) ---
+        const ctxPriorities = document.getElementById('prioritiesChart').getContext('2d');
+        const rawPriorityLabels = [
+            "DCM/HCI Design (Hard Safety)",
+            "Rust Policy Crates (Validators)",
+            "XR-Grid Zoning (Context)",
+            "Cosmos/DID Auth (Identity)"
+        ];
+        const processedPriorityLabels = rawPriorityLabels.map(formatLabel);
+
+        new Chart(ctxPriorities, {
+            type: 'bar',
+            data: {
+                labels: processedPriorityLabels,
+                datasets: [{
+                    label: 'Implementation Priority Index',
+                    data: [95, 85, 70, 45], // Estimated impact based on text
+                    backgroundColor: [
+                        '#00f3ff', // Cyan (Highest)
+                        '#bc13fe', // Purple
+                        '#00e676', // Green
+                        '#334155'  // Dim/Secondary
+                    ],
+                    borderRadius: 4,
+                    barThickness: 30
+                }]
+            },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y', // Horizontal Bar
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: '#1e293b' },
+                        ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#e2e8f0', font: { family: 'Inter', weight: '600' } }
+                    }
+                }
+            }
+        });
+
+        // --- Chart 2: K/S/R Radar Chart ---
+        const ctxKSR = document.getElementById('ksrRadarChart').getContext('2d');
+        const ksrLabels = ["Knowledge (K)", "Safety (S)", "Risk (R)"];
+        // K=0xE3(227), S=0x79(121), R=0x27(39). Assuming scale max ~255.
+        
+        new Chart(ctxKSR, {
+            type: 'radar',
+            data: {
+                labels: ksrLabels,
+                datasets: [{
+                    label: 'Current Mitigation Profile',
+                    data: [227, 121, 39],
+                    backgroundColor: 'rgba(0, 243, 255, 0.2)',
+                    borderColor: '#00f3ff',
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#00f3ff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#00f3ff'
+                },
+                {
+                    label: 'High Risk Threshold (Limit)',
+                    data: [100, 50, 200], // Hypothetical bad scenario for comparison
+                    backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                    borderColor: '#ff1744',
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    r: {
+                        angleLines: { color: '#334155' },
+                        grid: { color: '#1e293b' },
+                        pointLabels: {
+                            color: '#e2e8f0',
+                            font: { family: 'JetBrains Mono', size: 12 }
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
