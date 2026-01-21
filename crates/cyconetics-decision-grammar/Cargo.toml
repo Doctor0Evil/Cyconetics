@@ -1,0 +1,29 @@
+[package]
+name = "cyconetics-decision-grammar"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Typed RoH-bounded decision grammar and governance ledger for Cyconetics BCI/HCI safety spine."
+publish = false
+
+[lib]
+name = "cyconetics_decision_grammar"
+path = "src/lib.rs"
+
+[features]
+default = ["build-aln"]
+build-aln = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+thiserror = "1"
+
+# Uses the existing neurorights/safety spine crates
+neurorights-core = { path = "../neurorights-core" }
+neurorights-firewall = { path = "../neurorights-firewall" }
+
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
