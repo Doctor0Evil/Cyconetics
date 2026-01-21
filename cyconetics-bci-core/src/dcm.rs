@@ -2,8 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::error::CyconeticsBciError;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Jurisdiction {
     #[serde(rename = "US-CA")]
@@ -50,11 +48,49 @@ pub enum BackendKind {
     VendorC,
 }
 
+/// XR-grid zoning metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XrGridBinding {
     pub allowed_zones: Vec<String>,
     pub min_hazard_level: u8,
     pub max_hazard_level: u8,
+}
+
+/// Simple K/S/R-style risk score, following risk-matrix concepts
+/// (likelihood x consequence) from biosafety guidance.[web:121][web:122][web:128][web:125]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RiskScore {
+    /// 0–255: higher means more useful knowledge / maturity.
+    pub k_usefulness: u8,
+    /// 0–255: higher means larger social impact (positive or broad).
+    pub s_social_impact: u8,
+    /// 0–255: higher means higher risk-of-harm.
+    pub r_risk_of_harm: u8,
+    /// Optional categorical band, derived from R.
+    /// e.g., "low", "medium", "high", "extreme".
+    pub risk_band: String,
+}
+
+impl RiskScore {
+    /// Simple helper to derive a risk band from R, inspired by
+    /// 3–4 level matrices in biosafety risk assessment (low/medium/high/extreme).[web:122][web:125]
+    pub fn from_components(k: u8, s: u8, r: u8) -> Self {
+        let risk_band = if r <= 0x40 {
+            "low".to_string()
+        } else if r <= 0x80 {
+            "medium".to_string()
+        } else if r <= 0xC0 {
+            "high".to_string()
+        } else {
+            "extreme".to_string()
+        };
+        Self {
+            k_usefulness: k,
+            s_social_impact: s,
+            r_risk_of_harm: r,
+            risk_band,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,30 +105,10 @@ pub struct SafetyFlags {
     pub medical_isolation_rated: bool,
 }
 
-/// K/S/R risk components (0–255 each, hex-friendly)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RiskComponents {
-    /// Useful-knowledge / epistemic value (K)
-    pub k_useful_knowledge: u8,
-    /// Social impact (S), positive or disruptive potential encoded as magnitude
-    pub s_social_impact: u8,
-    /// Risk of harm (R), higher => more dangerous
-    pub r_risk_of_harm: u8,
-}
-
-/// Aggregate risk score derived from K/S/R
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RiskScore {
-    /// Linear aggregate score (0–255)
-    pub overall: u8,
-    /// Optional label: "low", "moderate", "high", "extreme"
-    pub level: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCapabilityManifest {
     pub id: Uuid,
-    pub name: String;
+    pub name: String,
     pub version: String,
 
     pub backend: BackendConfig,
@@ -107,49 +123,17 @@ pub struct DeviceCapabilityManifest {
 
     pub xr_grid: XrGridBinding,
 
-    /// K/S/R components for this device + driver combo.
-    pub risk_components: RiskComponents,
-    /// Cached aggregate score; can be recomputed from risk_components.
+    /// K/S/R risk score attached to this device/driver.
     pub risk_score: RiskScore,
 
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
-impl RiskScore {
-    /// Simple semi-quantitative aggregation inspired by lab risk matrices:
-    /// overall = clamp( (R * 2) + S.saturating_sub(K/4) , 0..=255 )
-    pub fn compute(components: &RiskComponents) -> Self {
-        let k = components.k_useful_knowledge as i32;
-        let s = components.s_social_impact as i32;
-        let r = components.r_risk_of_harm as i32;
-
-        let mut score = (r * 2) + s - (k / 4);
-        if score < 0 {
-            score = 0;
-        }
-        if score > 255 {
-            score = 255;
-        }
-        let overall = score as u8;
-
-        let level = if overall < 64 {
-            "low"
-        } else if overall < 128 {
-            "moderate"
-        } else if overall < 192 {
-            "high"
-        } else {
-            "extreme"
-        }
-        .to_string();
-
-        RiskScore { overall, level }
-    }
-}
-
 impl DeviceCapabilityManifest {
-    pub fn validate(&self) -> Result<(), CyconeticsBciError> {
+    pub fn validate(&self) -> Result<(), crate::error::CyconeticsBciError> {
+        use crate::error::CyconeticsBciError;
+
         if self.channels.is_empty() {
             return Err(CyconeticsBciError::ManifestViolation(
                 "DCM must declare at least one channel".into(),
@@ -191,11 +175,14 @@ impl DeviceCapabilityManifest {
             ));
         }
 
-        Ok(())
-    }
+        // Basic sanity check on risk band (optional).
+        let band = self.risk_score.risk_band.as_str();
+        if !["low", "medium", "high", "extreme"].contains(&band) {
+            return Err(CyconeticsBciError::ManifestViolation(
+                "risk_score.risk_band must be one of: low, medium, high, extreme".into(),
+            ));
+        }
 
-    /// Helper to recompute and update risk_score from risk_components.
-    pub fn recompute_risk_score(&mut self) {
-        self.risk_score = RiskScore::compute(&self.risk_components);
+        Ok(())
     }
 }
