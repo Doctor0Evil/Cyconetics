@@ -1,0 +1,21 @@
+[package]
+name = "cyconetics-bci-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Core Cyconetics BCI abstraction: DCMs, BrainFlow device layer, driver creation pipeline."
+repository = "https://github.com/Doctor0Evil/Cyconetics"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+brainflow = "4.8.0"
+uuid = { version = "1", features = ["v4", "serde"] }
+dirs = "5"
+anyhow = "1.0"
+
+# Placeholder for DID/bostrom or ALN signing; to be wired to your actual stack.
+# e.g., some DID crate or internal ALN SDK.
+# did-kit = "x.y.z"
