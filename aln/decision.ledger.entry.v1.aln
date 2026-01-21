@@ -1,0 +1,41 @@
+id: decision.ledger.entry.v1
+version: 1.0.0
+kind: ledger
+description: >
+  Append-only decision ledger entries for Cyconetics upgrades, keyed by
+  (host_did, upgrade_id, evolution_id).
+
+keys:
+  - host_did
+  - upgrade_id
+  - evolution_id
+
+fields:
+  decision_kind: DecisionKind
+  decision_record_hash: string
+
+  decided_by_did: string
+  decided_by_role: string
+
+  zone_id: string
+  scheduler_id: string
+
+  roh_at_decision: float
+  roh_delta: float
+
+  biokarma_snapshot_id: string
+  biomarker_envelope_id: string
+
+  created_at_ms: integer
+  hexstamp: string
+
+constraints:
+  append_only: true
+  min_roh: 0.0
+  max_roh: 1.0
+
+logging:
+  require_authorship_triplet: true
+  require_neurorights_profile: true
+
+hexstamp: "0x4c21d7f8a30b9e5d77c2ab18f9012e6b"
