@@ -9,30 +9,85 @@ use crate::error::CyconeticsBciError;
 pub struct BciFrame {
     pub timestamp: DateTime<Utc>,
     pub channels: Vec<f64>,
-    /// Simple quality flag; can be extended to per-channel flags.
     pub quality_ok: bool,
-    /// Arbitrary metadata derived from DCM or higher layers.
     pub metadata: Vec<(String, String)>,
 }
 
 pub struct CyconeticsBciDevice {
     manifest: DeviceCapabilityManifest,
     device: BrainFlowDevice,
+    bound_zone: Option<String>,
+    bound_hazard_level: Option<u8>,
 }
 
 impl CyconeticsBciDevice {
     pub fn new(device: BrainFlowDevice) -> Self {
         let manifest = device.manifest().clone();
-        Self { manifest, device }
+        Self {
+            manifest,
+            device,
+            bound_zone: None,
+            bound_hazard_level: None,
+        }
     }
 
     pub fn manifest(&self) -> &DeviceCapabilityManifest {
         &self.manifest
     }
 
-    /// Entry point: begin streaming with manifest-constrained sampling rate.
-    pub fn bci_stream_start(&mut self, sampling_hz: Option<u32>) -> Result<(), CyconeticsBciError> {
-        // Additional policy checks can be inserted here (session length, jurisdiction, etc.).
+    /// Bind this device instance to a specific XR-grid zone and hazard level.
+    ///
+    /// This must be called (and succeed) before starting any stream.
+    pub fn bind_to_zone(
+        &mut self,
+        zone_id: &str,
+        hazard_level: u8,
+    ) -> Result<(), CyconeticsBciError> {
+        use CyconeticsBciError::ManifestViolation;
+
+        if !self
+            .manifest
+            .xr_grid
+            .allowed_zones
+            .iter()
+            .any(|z| z == zone_id)
+        {
+            return Err(ManifestViolation(format!(
+                "Zone '{}' is not allowed for this device (allowed: {:?})",
+                zone_id, self.manifest.xr_grid.allowed_zones
+            )));
+        }
+
+        if hazard_level < self.manifest.xr_grid.min_hazard_level
+            || hazard_level > self.manifest.xr_grid.max_hazard_level
+        {
+            return Err(ManifestViolation(format!(
+                "Hazard level {} outside [{}, {}] for this device",
+                hazard_level,
+                self.manifest.xr_grid.min_hazard_level,
+                self.manifest.xr_grid.max_hazard_level
+            )));
+        }
+
+        self.bound_zone = Some(zone_id.to_string());
+        self.bound_hazard_level = Some(hazard_level);
+        Ok(())
+    }
+
+    fn ensure_bound(&self) -> Result<(), CyconeticsBciError> {
+        if self.bound_zone.is_none() || self.bound_hazard_level.is_none() {
+            return Err(CyconeticsBciError::ManifestViolation(
+                "Device must be bound to an XR-grid zone before streaming".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn bci_stream_start(
+        &mut self,
+        sampling_hz: Option<u32>,
+    ) -> Result<(), CyconeticsBciError> {
+        self.ensure_bound()?;
         self.device.start_stream(sampling_hz)
     }
 
@@ -40,13 +95,15 @@ impl CyconeticsBciDevice {
         self.device.stop_stream()
     }
 
-    pub fn bci_snapshot(&mut self, num_samples: usize) -> Result<Vec<BciFrame>, CyconeticsBciError> {
+    pub fn bci_snapshot(
+        &mut self,
+        num_samples: usize,
+    ) -> Result<Vec<BciFrame>, CyconeticsBciError> {
+        self.ensure_bound()?;
         let raw = self.device.read_frame(Some(num_samples))?;
         let now = Utc::now();
         let mut frames = Vec::new();
 
-        // BrainFlow returns channel-major data; here we transpose-ish into simple frames.
-        // For now, compress into a single BciFrame with averaged channels.
         let mut aggregated = vec![0.0; raw.len()];
         let mut count = 0usize;
         for ch_idx in 0..raw.len() {
@@ -64,11 +121,16 @@ impl CyconeticsBciDevice {
             }
         }
 
+        let mut metadata = vec![("source".into(), "brainflow".into())];
+        if let Some(zone) = &self.bound_zone {
+            metadata.push(("xr_zone".into(), zone.clone()));
+        }
+
         frames.push(BciFrame {
             timestamp: now,
             channels: aggregated,
             quality_ok: true,
-            metadata: vec![("source".into(), "brainflow".into())],
+            metadata,
         });
 
         Ok(frames)
