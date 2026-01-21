@@ -14,11 +14,8 @@ pub enum Jurisdiction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PrivacyLevel {
-    /// Minimal identity risk (e.g., anonymous task markers only)
     Low,
-    /// Potentially linkable to an individual with side information
     Medium,
-    /// Directly identifying or clinically sensitive
     High,
 }
 
@@ -26,15 +23,12 @@ pub enum PrivacyLevel {
 pub struct SamplingConstraints {
     pub min_hz: u32,
     pub max_hz: u32,
-    /// Default sampling rate in Hz to use if caller does not specify.
     pub default_hz: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConstraints {
-    /// Maximum continuous session duration in seconds.
     pub max_duration_secs: u32,
-    /// Minimum rest interval between sessions in seconds.
     pub min_rest_secs: u32,
 }
 
@@ -43,7 +37,6 @@ pub struct ChannelSpec {
     pub index: u16,
     pub label: String,
     pub unit: String,
-    /// Is this channel safe for closed-loop control usage?
     pub closed_loop_safe: bool,
 }
 
@@ -55,44 +48,49 @@ pub enum BackendKind {
     VendorC,
 }
 
+/// XR-grid zoning metadata for this device.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct XrGridBinding {
+    /// Logical zone IDs (e.g., "AZ-LAB-1-XR-EEG-LOWRISK").
+    pub allowed_zones: Vec<String>,
+    /// Minimum hazard level this device may be used with (e.g., BSL-like tier).
+    pub min_hazard_level: u8,
+    /// Maximum hazard level (helps constrain where the device is allowed).
+    pub max_hazard_level: u8,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackendConfig {
     pub kind: BackendKind,
-    /// For BrainFlow: board_id; for vendor: driver name; for LSL: stream type.
     pub identifier: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SafetyFlags {
-    /// True if device can perform stimulation, not just read.
     pub can_stimulate: bool,
-    /// True if hardware isolation is explicitly rated for patient connection.
     pub medical_isolation_rated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCapabilityManifest {
-    /// Stable manifest identifier (could be ALN / bostrom hash).
     pub id: Uuid,
     pub name: String,
     pub version: String,
 
     pub backend: BackendConfig,
 
-    /// Physical/operational constraints
     pub channels: Vec<ChannelSpec>,
     pub sampling: SamplingConstraints,
     pub session: SessionConstraints,
 
-    /// Jurisdictional and privacy metadata
     pub jurisdictions: Vec<Jurisdiction>,
     pub privacy: PrivacyLevel,
     pub safety: SafetyFlags,
 
-    /// Arbitrary tags and notes (e.g., "research-only", "no-clinical-use").
-    pub tags: Vec<String>,
+    /// XR-grid binding information.
+    pub xr_grid: XrGridBinding,
 
-    /// Creation time of this manifest.
+    pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -105,6 +103,7 @@ impl DeviceCapabilityManifest {
                 "DCM must declare at least one channel".into(),
             ));
         }
+
         if self.sampling.min_hz == 0
             || self.sampling.max_hz == 0
             || self.sampling.min_hz > self.sampling.max_hz
@@ -113,6 +112,7 @@ impl DeviceCapabilityManifest {
                 "Invalid sampling constraints".into(),
             ));
         }
+
         if self.sampling.default_hz < self.sampling.min_hz
             || self.sampling.default_hz > self.sampling.max_hz
         {
@@ -120,11 +120,25 @@ impl DeviceCapabilityManifest {
                 "Default sampling rate out of bounds".into(),
             ));
         }
+
         if self.session.max_duration_secs == 0 {
             return Err(CyconeticsBciError::ManifestViolation(
                 "Session max_duration_secs must be > 0".into(),
             ));
         }
+
+        if self.xr_grid.allowed_zones.is_empty() {
+            return Err(CyconeticsBciError::ManifestViolation(
+                "XR-grid configuration must declare at least one allowed zone".into(),
+            ));
+        }
+
+        if self.xr_grid.min_hazard_level > self.xr_grid.max_hazard_level {
+            return Err(CyconeticsBciError::ManifestViolation(
+                "XR-grid hazard levels are inconsistent".into(),
+            ));
+        }
+
         Ok(())
     }
 }
