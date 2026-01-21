@@ -37,7 +37,7 @@ impl CyconeticsBciDevice {
 
     /// Bind this device instance to a specific XR-grid zone and hazard level.
     ///
-    /// This must be called (and succeed) before starting any stream.
+    /// This must succeed before starting any stream or snapshot.
     pub fn bind_to_zone(
         &mut self,
         zone_id: &str,
@@ -45,6 +45,7 @@ impl CyconeticsBciDevice {
     ) -> Result<(), CyconeticsBciError> {
         use CyconeticsBciError::ManifestViolation;
 
+        // Check that zone is allowed in the device's XR-grid manifest.
         if !self
             .manifest
             .xr_grid
@@ -58,6 +59,7 @@ impl CyconeticsBciDevice {
             )));
         }
 
+        // Check hazard level against device's min/max hazard band.
         if hazard_level < self.manifest.xr_grid.min_hazard_level
             || hazard_level > self.manifest.xr_grid.max_hazard_level
         {
@@ -77,12 +79,13 @@ impl CyconeticsBciDevice {
     fn ensure_bound(&self) -> Result<(), CyconeticsBciError> {
         if self.bound_zone.is_none() || self.bound_hazard_level.is_none() {
             return Err(CyconeticsBciError::ManifestViolation(
-                "Device must be bound to an XR-grid zone before streaming".into(),
+                "Device must be bound to an XR-grid zone before streaming or snapshot".into(),
             ));
         }
         Ok(())
     }
 
+    /// Start streaming, enforcing XR-grid binding and manifest constraints.
     pub fn bci_stream_start(
         &mut self,
         sampling_hz: Option<u32>,
@@ -95,6 +98,7 @@ impl CyconeticsBciDevice {
         self.device.stop_stream()
     }
 
+    /// Take a snapshot of current data; requires a valid XR-grid binding.
     pub fn bci_snapshot(
         &mut self,
         num_samples: usize,
@@ -104,6 +108,7 @@ impl CyconeticsBciDevice {
         let now = Utc::now();
         let mut frames = Vec::new();
 
+        // Aggregate per-channel values into a single frame (simple average).
         let mut aggregated = vec![0.0; raw.len()];
         let mut count = 0usize;
         for ch_idx in 0..raw.len() {
@@ -124,6 +129,9 @@ impl CyconeticsBciDevice {
         let mut metadata = vec![("source".into(), "brainflow".into())];
         if let Some(zone) = &self.bound_zone {
             metadata.push(("xr_zone".into(), zone.clone()));
+        }
+        if let Some(level) = self.bound_hazard_level {
+            metadata.push(("xr_hazard_level".into(), level.to_string()));
         }
 
         frames.push(BciFrame {
