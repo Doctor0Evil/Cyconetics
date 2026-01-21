@@ -16,6 +16,5 @@ uuid = { version = "1", features = ["v4", "serde"] }
 dirs = "5"
 anyhow = "1.0"
 
-# Placeholder for DID/bostrom or ALN signing; to be wired to your actual stack.
-# e.g., some DID crate or internal ALN SDK.
-# did-kit = "x.y.z"
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
