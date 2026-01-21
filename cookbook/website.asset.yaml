@@ -1,0 +1,24 @@
+id: cookbook.website.cyberretrieval.v1
+version: 1.0.0
+kind: cookbook_asset
+description: "ALN-governed website for Cyber-Retrieval and Cyconetics."
+
+anchors:
+  content_policy: content.website.governance.v1
+  governance_shard: governance.chat.website.v1
+
+pages:
+  - id: "index"
+    path: "/"
+    class: "documentation"
+    hexstamp: "0x72c91e"
+    kf: 0.92
+    roh: 0.08
+    cs: 0.92
+  - id: "governance"
+    path: "/governance"
+    class: "governance-record"
+    hexstamp: "0x4F91C7AB39D62E11"
+    kf: 0.92
+    roh: 0.08
+    cs: 0.92
