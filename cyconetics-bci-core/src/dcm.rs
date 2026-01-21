@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Jurisdiction tags (e.g., Phoenix vs San Jolla lab grids).[file:3]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Jurisdiction {
     #[serde(rename = "US-CA")]
@@ -12,7 +13,7 @@ pub enum Jurisdiction {
     Other,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PrivacyLevel {
     Low,
     Medium,
@@ -48,7 +49,7 @@ pub enum BackendKind {
     VendorC,
 }
 
-/// XR-grid zoning metadata.
+/// XR-grid zoning metadata.[file:3]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XrGridBinding {
     pub allowed_zones: Vec<String>,
@@ -56,8 +57,14 @@ pub struct XrGridBinding {
     pub max_hazard_level: u8,
 }
 
-/// Simple K/S/R-style risk score, following risk-matrix concepts
-/// (likelihood x consequence) from biosafety guidance.[web:121][web:122][web:128][web:125]
+/// Schema version for CybostateFactor attached to this device.[file:3]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum CybostateSchemaVersion {
+    V1,
+    V2,
+}
+
+/// K/S/R-style risk score; R is hard-capped to respect RoH 0.3.[file:3]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiskScore {
     /// 0–255: higher means more useful knowledge / maturity.
@@ -72,9 +79,10 @@ pub struct RiskScore {
 }
 
 impl RiskScore {
-    /// Simple helper to derive a risk band from R, inspired by
-    /// 3–4 level matrices in biosafety risk assessment (low/medium/high/extreme).[web:122][web:125]
+    /// Derive a categorical band from R and enforce the RoH 0.3 ceiling in byte space.[file:3]
     pub fn from_components(k: u8, s: u8, r: u8) -> Self {
+        // 0.3 * 255 ≈ 76.5 ≈ 0x4C: anything above this must not be accepted
+        // for Phoenix / San Jolla RoH-governed devices.[file:3]
         let risk_band = if r <= 0x40 {
             "low".to_string()
         } else if r <= 0x80 {
@@ -91,6 +99,13 @@ impl RiskScore {
             risk_band,
         }
     }
+
+    /// Returns true if the encoded R respects the RoH 0.3 ceiling when
+    /// interpreted as a byte-scaled risk-of-harm.[file:3]
+    pub fn respects_roh_ceiling(&self) -> bool {
+        // 0.3 of 255 ≈ 76.5; use 0x4C as a strict upper bound.
+        self.r_risk_of_harm <= 0x4C
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +120,7 @@ pub struct SafetyFlags {
     pub medical_isolation_rated: bool,
 }
 
+/// Canonical Device Capability Manifest for Cyconetics BCI core.[file:3]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCapabilityManifest {
     pub id: Uuid,
@@ -125,6 +141,9 @@ pub struct DeviceCapabilityManifest {
 
     /// K/S/R risk score attached to this device/driver.
     pub risk_score: RiskScore,
+
+    /// CybostateFactor schema version used by this device.
+    pub cfschema_version: CybostateSchemaVersion,
 
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
@@ -175,11 +194,18 @@ impl DeviceCapabilityManifest {
             ));
         }
 
-        // Basic sanity check on risk band (optional).
+        // Basic sanity check on risk band.
         let band = self.risk_score.risk_band.as_str();
         if !["low", "medium", "high", "extreme"].contains(&band) {
             return Err(CyconeticsBciError::ManifestViolation(
                 "risk_score.risk_band must be one of: low, medium, high, extreme".into(),
+            ));
+        }
+
+        // Enforce global RoH ceiling at manifest level.
+        if !self.risk_score.respects_roh_ceiling() {
+            return Err(CyconeticsBciError::ManifestViolation(
+                "risk_score.r_risk_of_harm exceeds RoH 0.3 ceiling for this grid".into(),
             ));
         }
 
