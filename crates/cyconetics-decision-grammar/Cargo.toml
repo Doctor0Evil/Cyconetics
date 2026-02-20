@@ -1,29 +1,44 @@
 [package]
 name = "cyconetics-decision-grammar"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+authors = ["Cyconetics Team <dev@cyconetics.io>"]
+description = "Typed decision grammar, RoH enforcement, and neurorights governance for Cyconetics BCI/HCI systems"
 license = "MIT"
-description = "Typed RoH-bounded decision grammar and governance ledger for Cyconetics BCI/HCI safety spine."
-publish = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+hex = "0.4"
+thiserror = "1.0"
+chrono = "0.4"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# ALN/Cyberswarm integration
+aln-types = { path = "../aln-types", version = "0.1" }
+cyberswarm-shards = { path = "../cyberswarm-shards", version = "0.1" }
+
+# Cyconetics core types
+cyconetics-core = { path = "../cyconetics-core", version = "0.2" }
+lifeforce-guards = { path = "../lifeforce-guards", version = "0.1" }
+bioscale-upgrade-store = { path = "../bioscale-upgrade-store", version = "0.1" }
+
+[dev-dependencies]
+proptest = "1.0"
+criterion = "0.5"
 
 [lib]
 name = "cyconetics_decision_grammar"
 path = "src/lib.rs"
 
-[features]
-default = ["build-aln"]
-build-aln = []
+[[example]]
+name = "phoenix_bci_policy"
+path = "examples/phoenix_bci_policy.rs"
 
-[dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde_yaml = "0.9"
-thiserror = "1"
-
-# Uses the existing neurorights/safety spine crates
-neurorights-core = { path = "../neurorights-core" }
-neurorights-firewall = { path = "../neurorights-firewall" }
-
-[build-dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
