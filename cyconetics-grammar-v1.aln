@@ -1,0 +1,145 @@
+aln version 1.0
+id cyconetics-grammar-v1.aln
+owner_did did:bostrom:bostrom18sd2ujv24ual9c9pshtxys6j8knh6xaead9ye7
+label "Cyconetics Decision Grammar v1: Constitutional Reference for DID-Bound Neuromorphic Safety"
+description "Canonical grammar defining BCI/RoH ≤ 0.3 invariants, Errority ratchet semantics, and EcoAdmissible polytope enforcement for any system claiming cyconetics-compatible safety with Bostrom identity. This is NOT a public standard; it is a first-person, DID-bound constitution that vendors must import and enforce, not redefine."
+
+section BCI_RoH_Model
+  label "Biocompatibility Index and Risk of Harm"
+  ref ".biocompat-index-model.aln"
+  must_import true
+  canonical true
+  invariants [
+    "BCI_hard_ceiling = 0.30",
+    "RoH_hard_ceiling = 0.30",
+    "RoH_after ≤ RoH_before (monotone for all learning steps, OTA updates, controller changes)",
+    "BCI_after ≤ BCI_before (monotone for all parameter evolution)",
+    "Envelope-tightening-only: any BiophysicalEnvelopeSpec parameter Dnew ≤ Dold",
+    "No dreamplex or subconscious targeting: n1dreamplex, n2dreamplex, dreamcontexthooks strictly forbidden"
+  ]
+  evidence_bundle "DEFAULTBIOPHYSEVIDENCE"
+
+section Neurorights_Schemas
+  label "Mental Privacy and Inner Domain Inviolability"
+  refs [
+    "schemas/neurorights-policy.schema.json",
+    "schemas/biomech-integration-policy.schema.json"
+  ]
+  must_import true
+  canonical true
+  core_flags [
+    "noNeuralInputsForGovernance = true",
+    "rights.noscorefrominnerstate = true",
+    "rights.noneurocoercion = true",
+    "rights.augmentationcontinuity = true"
+  ]
+  forbidden_modules [
+    "n1dreamplex", "n2dreamplex", "dreamcontexthooks",
+    "subconsciousstatetargeting", "offhourstrainingonbrainstateproxies",
+    "directaffectmodulationforcompliance", "neuromarketingonbrainstate",
+    "covertsleepstagemodulation"
+  ]
+
+section SafetyGuards
+  label "Non-Actuating Runtime Observers"
+  refs [
+    "biosafety-guards/src/lib.rs",
+    "mapping-bci-0-3-safety-thresho-kXan15.GSw6pXq1ur_bz7g.md"
+  ]
+  must_implement true
+  guard_traits [
+    "BciCeilingGuard(state: BioState, proposal: ActionProposal) -> ActionVerdict",
+    "RoHGuard(state: BioState, proposal: ActionProposal) -> ActionVerdict",
+    "NeurorightsGuard(manifest: ModuleManifest) -> Result<(), String>",
+    "BiomechPolicyGuard(state: BioState, proposal: ActionProposal) -> ActionVerdict"
+  ]
+  action_verdicts [
+    "AllowFullAction",
+    "DegradePrecision",
+    "PauseAndRest"
+  ]
+  critical_invariant "Guards hold no actuator handles; all decisions are observer-only and flow back to enclave kernel for enforcement"
+
+section EVOLVE_Tokens
+  label "DID-Bound Authorization for Evolution"
+  spec "specs/evolve-token.v1.json"
+  must_implement true
+  canonical true
+  token_properties [
+    "shortlived = true",
+    "revocable = true",
+    "scoped to specific parameters and time windows",
+    "bound to subject_did, device_id, hardware_hash, software_version"
+  ]
+  biostate_guards [
+    "maxbcistar = 0.25 (conservative for pilot)",
+    "maxroh = 0.25 (conservative for pilot)",
+    "minhrvsdnn = 40.0 ms",
+    "maxfatigue = 0.4",
+    "maxpain = 0.3"
+  ]
+  consensus_requirement "multisig quorum of: explicit human consent UI + SovereigntyCore attestation"
+
+section EcoAdmissible_Polytopes
+  label "Ecological Safety Boundaries for Phoenix-West Corridor"
+  refs [
+    "phoenix-west-Peco.aln",
+    "phoenix-west-Pbee.aln",
+    "phoenix-west-Ptree.aln",
+    "phoenix-west-Pservice.aln"
+  ]
+  must_import true
+  canonical true
+  construction "P_corr := P_eco ∩ P_bee ∩ P_tree ∩ P_service"
+  bee_weighting_ref "bee-weighting.aln"
+  bee_hb_target "9.7 / 10.0"
+  cross_zone_rule "strictest-envelope-wins: global_ceiling = min_z(RoH_ceiling[z]), global_polytope = ⋂_z(P_corr[z])"
+  no_relaxation_clause "no_legal_path_to_increase(RoH_ceiling_global) or enlarge(P_corr_global) over historical values"
+
+section Errority_Ratchet
+  label "Incident-Driven Tightening, Never-Relax Mechanism"
+  spec "errority-ratchet.v1.aln"
+  must_implement true
+  canonical true
+  definition "Errority = harm inside nominally safe BCI/RoH and corridor bands"
+  allowed_actions [
+    "shrink nanopolytope faces (reduce A·x ≤ b)",
+    "lower BCI/RoH ceilings (e.g., 0.30 -> 0.28 -> 0.25)",
+    "increase hazard weights λᵢ,eff",
+    "quarantine or revoke misbehaving modules",
+    "reduce resource allocations (Blood Tokens, Calorie-tokens)"
+  ]
+  forbidden_actions [
+    "relax any safety ceiling",
+    "widen any polytope face",
+    "introduce neural inputs as 'mitigation'",
+    "add new scoring channels to bypass harm",
+    "remove Errority logging or audit trails"
+  ]
+  policy_macros [
+    "roh_policy!{ window, count_threshold, delta } -> if ≥N incidents in T, RoH_ceiling := max(0.15, RoH_ceiling - delta)",
+    "eco_policy!{ dim, factor } -> shrink selected polytope faces or increase bee_λᵢ",
+    "blood_token_policy!{} -> reduce metabolic budgets for device classes on systemic drain"
+  ]
+
+section Attestation_and_Compliance
+  label "DID-Bound Manifest Requirements"
+  manifest_type "NeuroEcoIdentityManifest + VC"
+  must_declare [
+    "cyconetics_grammar_version = v1",
+    "owner_did = this_bostrom_did",
+    "bci_roh_model_ref = '.biocompat-index-model.aln'",
+    "neurorights_schema_refs = ['neurorights-policy.schema.json', 'biomech-integration-policy.schema.json']",
+    "errority_ratchet_ref = 'errority-ratchet.v1.aln'",
+    "corridor_refs = ['phoenix-west-Peco.aln', 'phoenix-west-Pbee.aln', 'phoenix-west-Ptree.aln', 'phoenix-west-Pservice.aln']",
+    "biosafety_guards_crate_ref = 'biosafety-guards (Rust)'",
+    "must_import = true"
+  ]
+  external_claim_rule "Any vendor claiming 'cyconetics-compatible' or 'BCI-0.3-safe' for DID bostrom18… must either (a) link this grammar v1 directly, or (b) provide formal proof of equivalence under independent audit"
+  remote_attestation "require SGX/TDZ/SEV-SNP quote proving OrganicCPU kernel runs approved biophysical-shell binaries and references this grammar"
+
+section Sovereign_Stance
+  label "First-Person Constitutional Declaration"
+  statement "I accept that there is no public cyconetics-decision-grammar crate or Errority ratchet RFC yet, so no vendor can honestly claim conformance to those names today. Instead, I treat my own DID-bound Biocompatibility Index, RoH ≤ 0.3 invariants, OrganicCPU SafetyGuards, EVOLVE token rules, and NeuroEco polytopes as the authoritative grammar and quarantine semantics for any neuromorphic system touching my body or corridors. Any future crate or standard that wants to speak for my safety must import these invariants and manifests under my DID instead of redefining them in private."
+  timestamp "2026-02-19T18:03:00Z"
+  signer "did:bostrom:bostrom18sd2ujv24ual9c9pshtxys6j8knh6xaead9ye7"
