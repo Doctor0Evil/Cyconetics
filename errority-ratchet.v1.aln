@@ -1,0 +1,220 @@
+{
+  "aln_version": "1.0",
+  "id": "errority-ratchet.v1.aln",
+  "owner_did": "did:bostrom:bostrom18sd2ujv24ual9c9pshtxys6j8knh6xaead9ye7",
+  "label": "Errority Ratchet Specification v1: Incident-Driven Monotone Tightening",
+  "description": "Formal specification of the Errority mechanism: automated, incident-driven constraint tightening that responds to harm by shrinking safety envelopes, never relaxing them. This ensures that empirical failures drive the system toward greater conservatism, not toward new invasive channels or relaxed ceilings.",
+  
+  "section": "Errority_Event_Definition",
+  "errority_event": {
+    "definition": "An observable harm or deviation occurring inside nominally safe operating bands (BCI ≤ 0.3, RoH ≤ 0.3, EcoAdmissible, BeeAdmissible, KarmaAdmissible)",
+    "examples": [
+      "Persistent inflammation or tissue stress despite BCI < 0.30",
+      "Nanoswarm density overshoot inside declared safe corridor",
+      "Bee hive disruption inside Pbee polytope",
+      "Cognitive load spike inside declared fatigue bounds",
+      "Device or module misbehavior despite policy schema validation"
+    ],
+    "detection_requirement": "Must be logged with cryptographic evidence (BioState snapshots, CEIM streams, polytope coordinates, module identity)",
+    "logging_target": "cyberswarm.decision.ledger.v1 (append-only, immutable)"
+  },
+
+  "section": "Errority_Record_Structure",
+  "decision_ledger_entry": {
+    "fields": [
+      "decision_id: UUID (globally unique incident identifier)",
+      "module_id: String (which module/device caused the harm)",
+      "proposal: ActionProposal (what was attempted)",
+      "BioState_before: {BCI, RoH, HRV, pain, fatigue, inflammation, nanoswarm_density}",
+      "BioState_after: {same as before}",
+      "CorridorState_before: {x_proj, Peco, Pbee, Ptree, Pservice polytope states}",
+      "CorridorState_after: {same as before}",
+      "evidence_bundle_id: Hash (references DEFAULTBIOPHYSEVIDENCE capture)",
+      "timestamp: ISO8601",
+      "error_class: Enum(BiophysicalOverload, EcologicalBreach, DeviceFault, UnexpectedHarm)",
+      "severity: Enum(Minor, Moderate, Severe, Critical)"
+    ]
+  },
+
+  "evolution_audit_record": {
+    "fields": [
+      "evo_id: UUID (evolution attempt identifier)",
+      "evidence_bundles: [10-element biomarker captures: IL-6, CRP, cortisol, ECG, glucose, temp, lactate, O2_sat, pain_score, fatigue_index]",
+      "polytopes_before: {A_eco, b_eco; A_bee, b_bee; A_tree, b_tree; A_service, b_service}",
+      "polytopes_after: {updated polytope matrices if tightening applied}",
+      "roh_ceiling_before: f32",
+      "roh_ceiling_after: f32",
+      "bci_ceiling_before: f32",
+      "bci_ceiling_after: f32",
+      "hazard_weights_delta: {dimension -> (old_lambda, new_lambda)}",
+      "modules_revoked: [module_id, module_id, ...]",
+      "modules_quarantined: [module_id, module_id, ...]",
+      "merkle_anchor: Hash (cryptographic link to previous Errority state)",
+      "did_signature: Signature (owner DID signs this record)"
+    ]
+  },
+
+  "section": "Allowed_Tightening_Actions",
+  "tightening_operations": [
+    {
+      "action": "Shrink_Nanopolytope",
+      "description": "Reduce the feasible region by tightening A·x ≤ b constraints",
+      "example": "If bee hive harm observed at RF = 10 dBm, lower b_rf from 15 to 8",
+      "mechanism": "Adjust coefficient vectors A_eco, A_bee, A_tree, A_service or lower right-hand side b_eco, b_bee, b_tree, b_service",
+      "reversibility": "One-way: no future update may expand polytope beyond historical minimum",
+      "audit": "All polytope deltas recorded in evolution_audit_record, immutable"
+    },
+    {
+      "action": "Lower_BCI_Ceiling",
+      "description": "Reduce the hard ceiling for Biocompatibility Index",
+      "example": "If persistent fatigue inside BCI < 0.30, lower pilot ceiling from 0.25 to 0.22",
+      "mechanism": "Update BCI_hard_ceiling and BCI_operational_ceiling fields in .biocompat-index-model.aln",
+      "reversibility": "One-way: no future update may raise BCI ceiling above current value",
+      "audit": "Ceiling changes stamped with Errority event IDs and evidence bundles"
+    },
+    {
+      "action": "Lower_RoH_Ceiling",
+      "description": "Reduce the hard ceiling for Risk of Harm",
+      "example": "If nanoswarm toxicity spike detected, lower RoH_hard_ceiling from 0.30 to 0.28",
+      "mechanism": "Update RoH_hard_ceiling and RoH_operational_ceiling in model shard",
+      "reversibility": "One-way; locked in place",
+      "audit": "RoH_ceiling_before, RoH_ceiling_after recorded in every Errority audit record"
+    },
+    {
+      "action": "Increase_Hazard_Weights",
+      "description": "Increase λᵢ,eff (effective hazard weight) for specific stressors",
+      "example": "If bee RF harm observed, increase λ_rf_bee from 1.5x to 2.0x or 2.5x in bee-weighting.aln",
+      "mechanism": "Update hazard coefficient vectors in corridor polytope definitions",
+      "reversibility": "One-way; weights may only increase with Errority events",
+      "audit": "All weight deltas recorded in hazard_weights_delta field"
+    },
+    {
+      "action": "Quarantine_Module",
+      "description": "Place a misbehaving or faulty module into quarantine state",
+      "example": "If nanoswarm controller causes harm, set module_state = Quarantined, denying load/execute/actuate",
+      "mechanism": "Update module lifecycle state in registry; guards check this state before permitting any operation",
+      "reversibility": "Reversible by manual human review + signed EVOLVE token, but audit trail is permanent",
+      "audit": "Module quarantine events logged with causal Errority IDs, evidence bundles, and operator signature"
+    },
+    {
+      "action": "Revoke_Module_Compatibility",
+      "description": "Permanently revoke a module's compatibility with this DID",
+      "example": "If persistent failure despite quarantine, set module_status = Revoked, preventing ever re-enabling",
+      "mechanism": "Add module_id to revoked_modules immutable list in manifest; guards reject any load attempt",
+      "reversibility": "Permanently irreversible; can only be undone by formal appeal process with independent audit",
+      "audit": "Revocation stamped with Errority chain, evidence, and DID signature"
+    },
+    {
+      "action": "Reduce_Resource_Allocations",
+      "description": "Lower budget allocations for Blood Tokens, Calorie-tokens, or session durations",
+      "example": "If systemic metabolic drain detected, reduce daily blood_token budget from 1000 to 800",
+      "mechanism": "Update token budgets in BiophysicalShellConfig or OrganicCPU resource manager",
+      "reversibility": "One-way under Errority; may be restored only via new EVOLVE token with evidence of recovery",
+      "audit": "Budget deltas and causal Errority IDs recorded in ledger"
+    }
+  ],
+
+  "section": "Explicitly_Forbidden_Errority_Actions",
+  "forbidden_operations": [
+    {
+      "action": "Relax_Safety_Ceiling",
+      "why_forbidden": "Errority is designed to trend monotonically toward greater safety; relaxing a ceiling breaks that invariant and allows a system to 'learn its way out' of harm by requesting looser rules",
+      "example": "Never change RoH_ceiling from 0.25 back to 0.30 after an Errority event"
+    },
+    {
+      "action": "Widen_Polytope_Faces",
+      "why_forbidden": "Ecological and biophysical constraints are conservatively derived; widening them in response to harm is equivalent to saying 'our model was too strict,' which reverses safety gains",
+      "example": "Never increase b_eco or b_bee coefficients after observing an Errority event"
+    },
+    {
+      "action": "Introduce_Neural_Scoring_Channels",
+      "why_forbidden": "Using inner neural content to 'solve' or 'work around' biophysical harms violates neurorights invariants and the core principle of inner-domain inviolability",
+      "example": "Never add EEG-based affect scoring to gates or propose 'thought-based adjustments' to recover from RoH overshoot"
+    },
+    {
+      "action": "Add_New_Governance_Scores",
+      "why_forbidden": "New scoring channels become new attack surfaces and new ways to coerce compliance; Errority must tighten existing envelopes, not create new ones",
+      "example": "Never invent a 'Cooperation Index' or 'Loyalty Score' triggered by Errority events"
+    },
+    {
+      "action": "Remove_or_Truncate_Audit_Trails",
+      "why_forbidden": "Errority events are the empirical foundation for system improvement; deleting or hiding them breaks the feedback loop and enables cover-ups",
+      "example": "Never delete Errority logs, summarize them away, or mark them as 'resolved' in a way that hides the evidence"
+    },
+    {
+      "action": "Disable_Tightening_Macros",
+      "why_forbidden": "If policy macros (roh_policy!, eco_policy!, blood_token_policy!) can be disabled, the Errority ratchet stops working and becomes a false promise",
+      "example": "Never allow a configuration flag to turn off automatic policy tightening"
+    }
+  ],
+
+  "section": "Errority_Policy_Macros",
+  "macro_definitions": [
+    {
+      "macro_name": "roh_policy!",
+      "syntax": "roh_policy!{ window_hours, incident_count_threshold, ceiling_delta }",
+      "behavior": "If ≥ incident_count_threshold Errority events occur within window_hours, automatically lower RoH_ceiling_runtime by ceiling_delta (but not below 0.15)",
+      "example": "roh_policy!{ 24, 3, 0.05 } → if 3+ incidents in 24h, RoH_ceiling := max(0.15, RoH_ceiling - 0.05)",
+      "immutability": "Once compiled into OrganicCPU kernel, cannot be disabled or modified without DID-signed EVOLVE token"
+    },
+    {
+      "macro_name": "eco_policy!",
+      "syntax": "eco_policy!{ polytope_dimension, tightening_factor }",
+      "behavior": "When Errority indicates ecological breach, shrink selected polytope face or increase hazard weight",
+      "example": "eco_policy!{ rf_bee, 1.5 } → multiply λ_rf_bee by 1.5, tightening RF constraint for bee safety",
+      "immutability": "Locked into policy shards; reversals require explicit Errority reversal ceremony (never automatic)"
+    },
+    {
+      "macro_name": "blood_token_policy!",
+      "syntax": "blood_token_policy!{ device_class, drain_threshold_percent }",
+      "behavior": "If a device class shows systemic metabolic drain > drain_threshold_percent, derate its daily blood_token allocation",
+      "example": "blood_token_policy!{ nanoswarm_XR, 25 } → if cumulative drain > 25%, reduce next-day budget by 15%",
+      "immutability": "Enforced at host-local resource manager; cannot be overridden externally"
+    }
+  ],
+
+  "section": "Cross_Zone_Harmonic_Tightening",
+  "harmonization_rule": "strictest-envelope-wins",
+  "mechanism": {
+    "scenario": "Zone A has RoH_ceiling = 0.25; Zone B proposes RoH_ceiling = 0.28; both corridors intersect and share hosts",
+    "process": [
+      "Compute global_RoH_ceiling = min(0.25, 0.28) = 0.25",
+      "Compute global_polytope = P_corr(A) ∩ P_corr(B)",
+      "All interoperating hosts use global_RoH_ceiling and global_polytope",
+      "If Zone B later has an Errority event, its ceiling may drop to 0.22, automatically lowering global ceiling for all"
+    ],
+    "implication": "No zone can opt out of tightening; one Errority event propagates to raise safety for everyone in the network"
+  },
+
+  "section": "Implementation_in_OrganicCPU_Kernel",
+  "runtime_enforcement": {
+    "decision_flow": [
+      "1. Action proposed to kernel via ActionProposal",
+      "2. Guards (BciCeilingGuard, RoHGuard, EcoGuard) evaluate current state and future state",
+      "3. If any guard detects harm inside safe band, emit Errority log entry to cyberswarm.decision.ledger.v1",
+      "4. Trigger appropriate policy_macro (roh_policy, eco_policy, blood_token_policy)",
+      "5. Update manifest shards (.biocompat-index-model.aln, corridor shards, hazard weights)",
+      "6. Return PauseAndRest or DegradePrecision; never return AllowFullAction if Errority detected",
+      "7. Next decision gate uses updated, stricter bounds; no recovery path exists"
+    ]
+  },
+
+  "section": "Auditor_Verification_Checklist",
+  "checklist": [
+    "☐ All Errority events have immutable ledger entries with cryptographic hashes and DID signatures",
+    "☐ No tightening action is reversible without formal appeal and independent audit",
+    "☐ All policy_macro definitions are immutable and cannot be disabled at runtime",
+    "☐ RoH and BCI ceilings can only decrease or stay flat over time, never increase",
+    "☐ Polytope faces can only shrink, never widen",
+    "☐ Hazard weights can only increase, never decrease under Errority",
+    "☐ No forbidden Errority action (relax ceiling, add neural scoring, remove logs) is technically possible",
+    "☐ Cross-zone strictest-envelope-wins harmonization is enforced automatically",
+    "☐ Module quarantine and revocation are permanent until formal appeal process",
+    "☐ All Errority deltas are attributable to specific incidents with evidence bundles"
+  ],
+
+  "section": "Sovereign_Stance",
+  "statement": "I accept the Errority ratchet as the constitutional correction mechanism for my body, nanoswarms, and corridors. Empirical harm is the only acceptable trigger for tightening safety constraints; no optimization goal, performance target, or external pressure can relax them. I demand that any runtime claiming Errority compliance prove, under audit, that all forbidden actions are technically impossible, not just discouraged by policy.",
+  "timestamp": "2026-02-19T18:03:00Z",
+  "signer": "did:bostrom:bostrom18sd2ujv24ual9c9pshtxys6j8knh6xaead9ye7"
+}
